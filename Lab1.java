@@ -10,6 +10,7 @@ import java.util.*;
 public class Lab1 {
     static String l1,l2 = "";
     static int featureNum = 0;
+    static String f_val1, f_val2="";
     /***
      * Main method of the project
      */
@@ -20,7 +21,7 @@ public class Lab1 {
         String tuneIn = args[1];
         String testIn = args[2];
         // parser
-
+        System.out.println(trainIn + tuneIn + testIn);
         List<fvec> trainVecs = ParseFile(trainIn);
         List<fvec> tuneVecs = ParseFile(tuneIn);
         List<fvec> testVecs = ParseFile(testIn);
@@ -65,7 +66,8 @@ public class Lab1 {
         for (fvec f : testVecs) {
             double out = f.getResult(p);
             o = out > thre ? 1 : 0;
-            System.out.println(o);
+            String printOut = o == 1? l1:l2;
+            System.out.println(printOut);
         }
     }
 
@@ -95,6 +97,11 @@ public class Lab1 {
                         }
                         lineCount++;
                         continue;
+                    }
+                    if(lineCount == 2){
+                        String[] split = line.split(" ");
+                        f_val2 = split[split.length - 1];
+                        f_val1 = split[split.length - 2];
                     }
 
                     // System.out.println(line);
@@ -176,18 +183,18 @@ public class Lab1 {
 
         List<String> elmts = new ArrayList<>();
         for (int i = 2; i < raw_elmts.length; i++) {
-            if((raw_elmts[i].trim().equals("T")) || (raw_elmts[i].trim().equals("F"))){
+            if((raw_elmts[i].trim().equals(f_val1)) || (raw_elmts[i].trim().equals(f_val2))){
                 elmts.add(raw_elmts[i].trim());
             }
         }
 
-        String [] processed_Elmts = new String [elmts.size()];
+        String [] processed_Elmts = new String [featureNum];
         elmts.toArray(processed_Elmts);
         // remove non binary terms, if any
         int[] features = new int [processed_Elmts.length];
         for (int i = 0; i < features.length; i++) {
            // boolean isT = raw_elmts[i+2].trim()=="T";
-            features[i] = (raw_elmts[i+2].trim().equals("T")? 1: 0);
+            features[i] = (processed_Elmts[i].trim().equals(f_val1)? 1: 0);
         }
 
 
@@ -212,37 +219,36 @@ public class Lab1 {
 
         // batch update: 1000 units per update
         List<fvec> updateCandidates = new ArrayList<>();
-        for(int i = 1; i <= numUpdates; i++){
+        for(int i = 1; i <= numUpdates; i++) {
             updateCandidates.clear();
-            if(i == numUpdates){
-                updateCandidates = fveclist.subList((numUpdates - 1)*1000, sampleSize - 1);
+            if (i == numUpdates) {
+                updateCandidates = fveclist.subList((numUpdates - 1) * 1000, sampleSize - 1);
 
+            } else {
+                updateCandidates = fveclist.subList((i - 1) * 1000, 1000 * i);
             }
-            else{
-                updateCandidates = fveclist.subList((i - 1)*1000, 1000*i);
+
+
+            List<Double> errs = new ArrayList<>();
+            for (fvec f : updateCandidates) {
+                double o = f.getResult(p);
+                errs.add(f.label - o);
+            }
+
+            // update the weights
+            for (int k = 0; k < errs.size(); k++) {
+                double err = errs.get(k);
+                double output = updateCandidates.get(k).getResult(p);
+                fvec cur = updateCandidates.get(k);
+                for (int j = 0; j < p.weights.length - 1; j++) {
+                    // apply gradient decent
+                    double delta_w = alpha * cur.features[j] * err * output * (1 - output);
+                    p.weights[j] += delta_w;
+                }
+                double delta_bias = alpha * (-1) * err * output * (1 - output);
+                p.weights[p.weights.length - 1] += delta_bias;
             }
         }
-
-        List<Double> errs = new ArrayList<>();
-        for (fvec f : updateCandidates){
-            double o = f.getResult(p);
-            errs.add(f.label - o);
-        }
-
-        // update the weights
-        for (int i = 0 ; i < errs.size(); i++) {
-            double err = errs.get(i);
-            double output = updateCandidates.get(i).getResult(p);
-            fvec cur = updateCandidates.get(i);
-            for (int j = 0; j < p.weights.length - 1; j++) {
-                // apply gradient decent
-                double delta_w = alpha * cur.features[j] * err * output * (1 - output);
-                p.weights[j] += delta_w;
-            }
-            double delta_bias = alpha * (-1) * err * output * (1 - output);
-            p.weights[p.weights.length - 1] += delta_bias;
-        }
-
     }
 
     /***
